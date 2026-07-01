@@ -7,7 +7,7 @@ ScreenGui.Name = "Delta_Universal_ESP_ThoDz"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
--- ĐÃ CHUYỂN HẾT TRẠNG THÁI MẶC ĐỊNH THÀNH FALSE (TẮT)
+-- Mặc định TẮT HẾT khi chạy script, bạn tự bật khi cần
 local Player_Box_Enabled = false
 local Player_Name_Enabled = false
 local NPC_Box_Enabled = false
@@ -81,7 +81,6 @@ local function CreateMenuToggle(text, pos, default, activeColor, callback)
     btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 end
 
--- Cập nhật nút bấm hiển thị TẤT khi mới mở menu
 CreateMenuToggle("Player Khung (Box)", UDim2.new(0, 20, 0, 45), false, Color3.fromRGB(0, 255, 150), function(v) Player_Box_Enabled = v end)
 CreateMenuToggle("Player Tên & Mét", UDim2.new(0, 20, 0, 85), false, Color3.fromRGB(0, 255, 150), function(v) Player_Name_Enabled = v end)
 CreateMenuToggle("NPC Khung (Box)", UDim2.new(0, 20, 0, 135), false, Color3.fromRGB(255, 200, 0), function(v) NPC_Box_Enabled = v end)
@@ -182,7 +181,6 @@ local function CheckAndGetItemRoot(obj)
         local parent = obj.Parent
         if parent and not IsNPC(parent) and not IsNPC(parent.Parent) then
             local parentNameLower = parent.Name:lower()
-            
             if parent:FindFirstChildOfClass("Dialog") or parent:FindFirstChildOfClass("DialogPrompt") then return nil, nil end
             if obj:IsA("ProximityPrompt") then
                 local actionText = obj.ActionText:lower()
@@ -191,11 +189,9 @@ local function CheckAndGetItemRoot(obj)
                     if actionText:find(ign) or objectText:find(ign) then return nil, nil end
                 end
             end
-            
             for _, ign in ipairs(IgnoreKeywords) do
                 if parentNameLower:find(ign) then return nil, nil end
             end
-
             local target = GetTargetItemPart(parent)
             if target and target.Name ~= "HumanoidRootPart" then
                 local customName = obj:IsA("ProximityPrompt") and (obj.ObjectText ~= "" and obj.ObjectText or obj.ActionText)
@@ -206,14 +202,11 @@ local function CheckAndGetItemRoot(obj)
     
     if obj:IsA("Model") or (obj:IsA("BasePart") and not obj.Parent:IsA("Model")) then
         if IsNPC(obj) or IsNPC(obj.Parent) then return nil, nil end
-        
         local nameLower = obj.Name:lower()
-        
         for _, ign in ipairs(IgnoreKeywords) do
             if nameLower:find(ign) then return nil, nil end
         end
         if obj:FindFirstChildOfClass("Dialog") then return nil, nil end
-        
         local isMatchKeyword = false
         for _, kw in ipairs(ValidItemKeywords) do
             if nameLower:find(kw) or nameLower:find("spawn") then
@@ -221,7 +214,6 @@ local function CheckAndGetItemRoot(obj)
                 break
             end
         end
-        
         if isMatchKeyword then
             local target = GetTargetItemPart(obj)
             if target and target.Name ~= "HumanoidRootPart" and not game.Players:GetPlayerFromCharacter(obj.Parent) then
@@ -234,8 +226,10 @@ end
 
 local function ApplyPlayerESP(player)
     if player == LocalPlayer then return end
+    
     local function SetupPlayerChar(character)
-        local hrp = character:WaitForChild("HumanoidRootPart", 10)
+        if not character then return end
+        local hrp = character:WaitForChild("HumanoidRootPart", 15)
         if not hrp then return end
 
         if character:FindFirstChild("P_Highlight") then character["P_Highlight"]:Destroy() end
@@ -268,11 +262,15 @@ local function ApplyPlayerESP(player)
         TextLabel.TextStrokeTransparency = 0
         BillboardGui.Parent = hrp
     end
+
     if player.Character then task.spawn(SetupPlayerChar, player.Character) end
-    player.CharacterAdded:Connect(SetupPlayerChar)
+    player.CharacterAdded:Connect(function(char)
+        task.spawn(SetupPlayerChar, char)
+    end)
 end
 
 local function ApplyNPC_ESP(model)
+    if not model or not model.Parent then return end
     local hrp = model:WaitForChild("HumanoidRootPart", 5)
     if not hrp then return end
 
@@ -310,7 +308,7 @@ local function ApplyNPC_ESP(model)
 end
 
 local function ApplyItemESP(targetPart, displayName)
-    if not targetPart then return end
+    if not targetPart or not targetPart.Parent then return end
     if targetPart:FindFirstChild("Item_Highlight") then targetPart["Item_Highlight"]:Destroy() end
     if targetPart:FindFirstChild("Item_Gui") then targetPart["Item_Gui"]:Destroy() end
 
@@ -343,20 +341,26 @@ local function ApplyItemESP(targetPart, displayName)
     BillboardGui.Parent = targetPart
 end
 
+-- Khởi chạy ban đầu cho Player
 for _, p in ipairs(Players:GetPlayers()) do ApplyPlayerESP(p) end
 Players.PlayerAdded:Connect(ApplyPlayerESP)
 
-for _, obj in ipairs(workspace:GetDescendants()) do
-    if IsNPC(obj) then
-        task.spawn(ApplyNPC_ESP, obj)
-    else
-        local target, name = CheckAndGetItemRoot(obj)
-        if target then task.spawn(ApplyItemESP, target, name) end
+-- Hàm quét và nạp dữ liệu bản đồ (NPC & Item)
+local function ScanWorkspace()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if IsNPC(obj) then
+            task.spawn(ApplyNPC_ESP, obj)
+        else
+            local target, name = CheckAndGetItemRoot(obj)
+            if target then task.spawn(ApplyItemESP, target, name) end
+        end
     end
 end
+ScanWorkspace()
 
+-- Quét liên tục khi ván mới sinh ra vật phẩm hoặc quái mới
 workspace.DescendantAdded:Connect(function(obj)
-    task.delay(0.5, function()
+    task.delay(0.8, function()
         if IsNPC(obj) then
             ApplyNPC_ESP(obj)
         else
@@ -366,11 +370,19 @@ workspace.DescendantAdded:Connect(function(obj)
     end)
 end)
 
+-- Tự động quét lại toàn bộ Map khi bản thân bạn chuyển ván/hồi sinh
+LocalPlayer.CharacterAdded:Connect(function()
+    task.delay(2, function()
+        ScanWorkspace()
+    end)
+end)
+
+-- Vòng lặp cập nhật khoảng cách & trạng thái Bật/Tắt thời gian thực
 game:GetService("RunService").Heartbeat:Connect(function()
     local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+        if player ~= LocalPlayer and player.Character and player.Character.Parent then
             local hl = player.Character:FindFirstChild("P_Highlight")
             if hl then hl.Enabled = Player_Box_Enabled end
             local hrp = player.Character:FindFirstChild("HumanoidRootPart")
@@ -388,7 +400,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChild("NPC_Highlight") then
             local hl = obj:FindFirstChild("NPC_Highlight")
-            hl.Enabled = NPC_Box_Enabled
+            if hl then hl.Enabled = NPC_Box_Enabled end
             local hrp = obj:FindFirstChild("HumanoidRootPart")
             local gui = hrp and hrp:FindFirstChild("NPC_Gui")
             if gui then
@@ -396,14 +408,14 @@ game:GetService("RunService").Heartbeat:Connect(function()
                 if NPC_Name_Enabled and localHrp and hrp then
                     local dist = (hrp.Position - localHrp.Position).Magnitude
                     local npcType, npcColor = AnalyzeNPC(obj)
-                    hl.OutlineColor = npcColor
+                    if hl then hl.OutlineColor = npcColor end
                     gui.TextLabel.TextColor3 = npcColor
                     gui.TextLabel.Text = obj.Name .. " [" .. npcType .. "] [" .. math.floor(dist) .. "m]"
                 end
             end
         elseif obj:IsA("BasePart") and obj:FindFirstChild("Item_Highlight") then
             local hl = obj:FindFirstChild("Item_Highlight")
-            hl.Enabled = Item_Box_Enabled
+            if hl then hl.Enabled = Item_Box_Enabled end
             local gui = obj:FindFirstChild("Item_Gui")
             if gui then
                 gui.Enabled = Item_Name_Enabled
