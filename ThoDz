@@ -7,12 +7,13 @@ ScreenGui.Name = "Delta_Universal_ESP_ThoDz"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-local Player_Box_Enabled = true
-local Player_Name_Enabled = true
-local NPC_Box_Enabled = true
-local NPC_Name_Enabled = true
-local Item_Box_Enabled = true
-local Item_Name_Enabled = true
+-- ĐÃ CHUYỂN HẾT TRẠNG THÁI MẶC ĐỊNH THÀNH FALSE (TẮT)
+local Player_Box_Enabled = false
+local Player_Name_Enabled = false
+local NPC_Box_Enabled = false
+local NPC_Name_Enabled = false
+local Item_Box_Enabled = false
+local Item_Name_Enabled = false
 
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Parent = ScreenGui
@@ -80,12 +81,13 @@ local function CreateMenuToggle(text, pos, default, activeColor, callback)
     btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 end
 
-CreateMenuToggle("Player Khung (Box)", UDim2.new(0, 20, 0, 45), true, Color3.fromRGB(0, 255, 150), function(v) Player_Box_Enabled = v end)
-CreateMenuToggle("Player Tên & Mét", UDim2.new(0, 20, 0, 85), true, Color3.fromRGB(0, 255, 150), function(v) Player_Name_Enabled = v end)
-CreateMenuToggle("NPC Khung (Box)", UDim2.new(0, 20, 0, 135), true, Color3.fromRGB(255, 200, 0), function(v) NPC_Box_Enabled = v end)
-CreateMenuToggle("NPC Tên & Mét", UDim2.new(0, 20, 0, 175), true, Color3.fromRGB(255, 200, 0), function(v) NPC_Name_Enabled = v end)
-CreateMenuToggle("Item Khung (Box)", UDim2.new(0, 20, 0, 225), true, Color3.fromRGB(255, 0, 255), function(v) Item_Box_Enabled = v end)
-CreateMenuToggle("Item Tên & Mét", UDim2.new(0, 20, 0, 265), true, Color3.fromRGB(255, 0, 255), function(v) Item_Name_Enabled = v end)
+-- Cập nhật nút bấm hiển thị TẤT khi mới mở menu
+CreateMenuToggle("Player Khung (Box)", UDim2.new(0, 20, 0, 45), false, Color3.fromRGB(0, 255, 150), function(v) Player_Box_Enabled = v end)
+CreateMenuToggle("Player Tên & Mét", UDim2.new(0, 20, 0, 85), false, Color3.fromRGB(0, 255, 150), function(v) Player_Name_Enabled = v end)
+CreateMenuToggle("NPC Khung (Box)", UDim2.new(0, 20, 0, 135), false, Color3.fromRGB(255, 200, 0), function(v) NPC_Box_Enabled = v end)
+CreateMenuToggle("NPC Tên & Mét", UDim2.new(0, 20, 0, 175), false, Color3.fromRGB(255, 200, 0), function(v) NPC_Name_Enabled = v end)
+CreateMenuToggle("Item Khung (Box)", UDim2.new(0, 20, 0, 225), false, Color3.fromRGB(255, 0, 255), function(v) Item_Box_Enabled = v end)
+CreateMenuToggle("Item Tên & Mét", UDim2.new(0, 20, 0, 265), false, Color3.fromRGB(255, 0, 255), function(v) Item_Name_Enabled = v end)
 
 local UserInputService = game:GetService("UserInputService")
 local function MakeDraggable(obj)
@@ -120,22 +122,16 @@ end)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local ItemTranslation = {
-    ["chest"] = "Rương Đồ", ["box"] = "Hộp Vật Phẩm", ["crate"] = "Thùng Hàng",
-    ["fruit"] = "Trái Cây/Ác Quỷ", ["money"] = "Tiền", ["coin"] = "Tiền Xu",
-    ["cash"] = "Tiền Mặt", ["gold"] = "Vàng", ["diamond"] = "Kim Cương",
-    ["gem"] = "Đá Quý", ["ore"] = "Quặng Khoáng Sản", ["wood"] = "Gỗ",
-    ["stone"] = "Đá", ["key"] = "Chìa Khóa", ["card"] = "Thẻ Từ",
-    ["trash"] = "Rác/Phế Liệu", ["scrap"] = "Mảnh Thừa", ["medkit"] = "Túi Cứu Thương"
+local ValidItemKeywords = {
+    "chest", "box", "crate", "fruit", "money", "coin", "cash", "gold", 
+    "diamond", "gem", "ore", "wood", "stone", "key", "card", "scrap", 
+    "medkit", "loot", "pickup", "drop", "tool", "weapon", "potion"
 }
 
-local function GetVietnameseName(name)
-    local lowerName = name:lower()
-    for eng, vie in pairs(ItemTranslation) do
-        if lowerName:find(eng) then return vie end
-    end
-    return name
-end
+local IgnoreKeywords = {
+    "npc", "shop", "dealer", "talk", "chat", "dialog", "sign", "board", 
+    "info", "read", "quest", "giver", "teleport", "portal", "door", "button"
+}
 
 local function IsNPC(model)
     if Players:GetPlayerFromCharacter(model) then return false end
@@ -147,10 +143,10 @@ end
 
 local function AnalyzeNPC(model)
     local humanoid = model:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return "Nhiệm Vụ/Shop", Color3.fromRGB(255, 255, 255) end
+    if not humanoid then return "Interaction", Color3.fromRGB(255, 255, 255) end
 
     if humanoid.WalkSpeed <= 1 or humanoid.MaxSlopeAngle == 0 or model:FindFirstChild("ClickDetector") or model:FindFirstChildOfClass("Dialog") then
-        return "Tương Tác", Color3.fromRGB(255, 255, 255)
+        return "Interaction", Color3.fromRGB(255, 255, 255)
     end
 
     local hasWeapon = model:FindFirstChildOfClass("Tool") or model:FindFirstChild("Weapon")
@@ -167,9 +163,9 @@ local function AnalyzeNPC(model)
     end
 
     if hasWeapon or hasEnemyTag or hasAttackScript then
-        return "Kẻ Địch", Color3.fromRGB(255, 50, 50)
+        return "Enemy", Color3.fromRGB(255, 50, 50)
     end
-    return "Thân Thiện", Color3.fromRGB(0, 150, 255)
+    return "Friendly", Color3.fromRGB(0, 150, 255)
 end
 
 local function GetTargetItemPart(obj)
@@ -185,23 +181,47 @@ local function CheckAndGetItemRoot(obj)
     if obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector") or obj:IsA("TouchTransmitter") then
         local parent = obj.Parent
         if parent and not IsNPC(parent) and not IsNPC(parent.Parent) then
+            local parentNameLower = parent.Name:lower()
+            
+            if parent:FindFirstChildOfClass("Dialog") or parent:FindFirstChildOfClass("DialogPrompt") then return nil, nil end
+            if obj:IsA("ProximityPrompt") then
+                local actionText = obj.ActionText:lower()
+                local objectText = obj.ObjectText:lower()
+                for _, ign in ipairs(IgnoreKeywords) do
+                    if actionText:find(ign) or objectText:find(ign) then return nil, nil end
+                end
+            end
+            
+            for _, ign in ipairs(IgnoreKeywords) do
+                if parentNameLower:find(ign) then return nil, nil end
+            end
+
             local target = GetTargetItemPart(parent)
             if target and target.Name ~= "HumanoidRootPart" then
                 local customName = obj:IsA("ProximityPrompt") and (obj.ObjectText ~= "" and obj.ObjectText or obj.ActionText)
-                return target, customName ~= "" and customName or parent.Name
+                return target, (customName and customName ~= "") and customName or parent.Name
             end
         end
     end
+    
     if obj:IsA("Model") or (obj:IsA("BasePart") and not obj.Parent:IsA("Model")) then
         if IsNPC(obj) or IsNPC(obj.Parent) then return nil, nil end
+        
         local nameLower = obj.Name:lower()
+        
+        for _, ign in ipairs(IgnoreKeywords) do
+            if nameLower:find(ign) then return nil, nil end
+        end
+        if obj:FindFirstChildOfClass("Dialog") then return nil, nil end
+        
         local isMatchKeyword = false
-        for kw, _ in pairs(ItemTranslation) do
-            if nameLower:find(kw) or nameLower:find("spawn") or nameLower:find("interact") then
+        for _, kw in ipairs(ValidItemKeywords) do
+            if nameLower:find(kw) or nameLower:find("spawn") then
                 isMatchKeyword = true
                 break
             end
         end
+        
         if isMatchKeyword then
             local target = GetTargetItemPart(obj)
             if target and target.Name ~= "HumanoidRootPart" and not game.Players:GetPlayerFromCharacter(obj.Parent) then
@@ -294,8 +314,6 @@ local function ApplyItemESP(targetPart, displayName)
     if targetPart:FindFirstChild("Item_Highlight") then targetPart["Item_Highlight"]:Destroy() end
     if targetPart:FindFirstChild("Item_Gui") then targetPart["Item_Gui"]:Destroy() end
 
-    local vnName = GetVietnameseName(displayName)
-
     local Highlight = Instance.new("Highlight")
     Highlight.Name = "Item_Highlight"
     Highlight.FillColor = Color3.fromRGB(255, 0, 255)
@@ -317,7 +335,7 @@ local function ApplyItemESP(targetPart, displayName)
     TextLabel.Parent = BillboardGui
     TextLabel.BackgroundTransparency = 1
     TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.Text = vnName
+    TextLabel.Text = displayName
     TextLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
     TextLabel.TextSize = 12
     TextLabel.Font = Enum.Font.SourceSansBold
@@ -392,8 +410,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
                 if Item_Name_Enabled and localHrp then
                     local dist = (obj.Position - localHrp.Position).Magnitude
                     local baseName = obj.Parent:IsA("Model") and obj.Parent.Name or obj.Name
-                    local vnName = GetVietnameseName(baseName)
-                    gui.TextLabel.Text = vnName .. " [" .. math.floor(dist) .. "m]"
+                    gui.TextLabel.Text = baseName .. " [" .. math.floor(dist) .. "m]"
                 end
             end
         end
