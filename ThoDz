@@ -1,431 +1,176 @@
-if game:GetService("CoreGui"):FindFirstChild("Delta_Universal_ESP_ThoDz") then
-    game:GetService("CoreGui"):FindFirstChild("Delta_Universal_ESP_ThoDz"):Destroy()
+-- THO DZ UNIVERSAL ESP - ULTIMATE ANTI-CRASH VERSION
+if _G.ThoDz_ESP_Executed then
+    _G.ThoDz_Cleanup()
 end
+_G.ThoDz_Executed = true
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Delta_Universal_ESP_ThoDz"
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ResetOnSpawn = false
+-- Global configuration cache to prevent resetting toggles after map swaps
+_G.ESP_Config = _G.ESP_Config or {
+    Player_Box = false, Player_Name = false,
+    NPC_Box = false, NPC_Name = false,
+    Item_Box = false, Item_Name = false
+}
 
--- Mặc định TẮT HẾT khi mới chạy script
-local Player_Box_Enabled = false
-local Player_Name_Enabled = false
-local NPC_Box_Enabled = false
-local NPC_Name_Enabled = false
-local Item_Box_Enabled = false
-local Item_Name_Enabled = false
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Parent = ScreenGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-ToggleButton.Position = UDim2.new(0.1, 0, 0.2, 0)
-ToggleButton.Size = UDim2.new(0, 55, 0, 55)
-ToggleButton.Text = "MENU"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 11
-ToggleButton.Font = Enum.Font.SourceSansBold
-
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 12)
-ButtonCorner.Parent = ToggleButton
-
-local ButtonStroke = Instance.new("UIStroke")
-ButtonStroke.Color = Color3.fromRGB(0, 255, 150)
-ButtonStroke.Thickness = 1.5
-ButtonStroke.Parent = ToggleButton
-
-local MainMenu = Instance.new("Frame")
-MainMenu.Parent = ScreenGui
-MainMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainMenu.Position = UDim2.new(0.2, 0, 0.2, 0)
-MainMenu.Size = UDim2.new(0, 220, 0, 320)
-MainMenu.Visible = false
-
-local MenuCorner = Instance.new("UICorner")
-MenuCorner.CornerRadius = UDim.new(0, 8)
-MenuCorner.Parent = MainMenu
-
-local MenuTitle = Instance.new("TextLabel")
-MenuTitle.Parent = MainMenu
-MenuTitle.Size = UDim2.new(1, 0, 0, 35)
-MenuTitle.Text = "Thọ dz"
-MenuTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
-MenuTitle.TextSize = 16
-MenuTitle.Font = Enum.Font.SourceSansBold
-MenuTitle.BackgroundTransparency = 1
-
-local function CreateMenuToggle(text, pos, default, activeColor, callback)
-    local btn = Instance.new("TextButton")
-    btn.Parent = MainMenu
-    btn.Size = UDim2.new(0, 180, 0, 30)
-    btn.Position = pos
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 13
-    
-    local state = default
-    local function updateText()
-        btn.Text = text .. ": " .. (state and "BẬT" or "TẤT")
-        btn.TextColor3 = state and activeColor or Color3.fromRGB(255, 100, 100)
-    end
-    
-    updateText()
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        updateText()
-        callback(state)
-    end)
-    
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 5)
-    c.Parent = btn
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-end
-
-CreateMenuToggle("Player Màu Người (Full)", UDim2.new(0, 20, 0, 45), false, Color3.fromRGB(0, 255, 150), function(v) Player_Box_Enabled = v end)
-CreateMenuToggle("Player Tên & Mét", UDim2.new(0, 20, 0, 85), false, Color3.fromRGB(0, 255, 150), function(v) Player_Name_Enabled = v end)
-CreateMenuToggle("NPC Màu Người (Full)", UDim2.new(0, 20, 0, 135), false, Color3.fromRGB(255, 200, 0), function(v) NPC_Box_Enabled = v end)
-CreateMenuToggle("NPC Tên & Mét", UDim2.new(0, 20, 0, 175), false, Color3.fromRGB(255, 200, 0), function(v) NPC_Name_Enabled = v end)
-CreateMenuToggle("Item Khung (Box)", UDim2.new(0, 20, 0, 225), false, Color3.fromRGB(255, 0, 255), function(v) Item_Box_Enabled = v end)
-CreateMenuToggle("Item Tên & Mét", UDim2.new(0, 20, 0, 265), false, Color3.fromRGB(255, 0, 255), function(v) Item_Name_Enabled = v end)
-
-local UserInputService = game:GetService("UserInputService")
-local function MakeDraggable(obj)
-    local dragging, dragInput, dragStart, startPos
-    obj.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = obj.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    obj.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-end
-MakeDraggable(ToggleButton)
-MakeDraggable(MainMenu)
-
-ToggleButton.MouseButton1Click:Connect(function()
-    MainMenu.Visible = not MainMenu.Visible
-end)
-
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-local ValidItemKeywords = {
-    "chest", "box", "crate", "fruit", "money", "coin", "cash", "gold", 
-    "diamond", "gem", "ore", "wood", "stone", "key", "card", "scrap", 
-    "medkit", "loot", "pickup", "drop", "tool", "weapon", "potion"
-}
+local ScreenGui, MainMenu, ToggleButton
+local ItemCache = {}
 
-local IgnoreKeywords = {
-    "npc", "shop", "dealer", "talk", "chat", "dialog", "sign", "board", 
-    "info", "read", "quest", "giver", "teleport", "portal", "door", "button"
-}
+-- Optimized Search Filters
+local ValidItemKeywords = {"chest", "box", "crate", "fruit", "money", "coin", "cash", "gold", "diamond", "gem", "ore", "key", "loot", "pickup", "drop", "tool", "weapon", "potion"}
+local IgnoreKeywords = {"npc", "shop", "dealer", "talk", "chat", "dialog", "sign", "board", "info", "quest", "portal", "accessory", "hat"}
 
-local function IsNPC(model)
-    if Players:GetPlayerFromCharacter(model) then return false end
-    if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") and model:FindFirstChild("HumanoidRootPart") then
-        return true
+-- UI Constructor (Auto-Recreates if deleted by game scripts)
+local function BuildUI()
+    if CoreGui:FindFirstChild("Delta_Universal_ESP_ThoDz") then
+        CoreGui["Delta_Universal_ESP_ThoDz"]:Destroy()
     end
-    return false
+
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "Delta_Universal_ESP_ThoDz"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = CoreGui
+
+    ToggleButton = Instance.new("TextButton")
+    ToggleButton.Parent = ScreenGui
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    ToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+    ToggleButton.Size = UDim2.new(0, 55, 0, 55)
+    ToggleButton.Text = "MENU"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 11
+    ToggleButton.Font = Enum.Font.SourceSansBold
+
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 12)
+    ButtonCorner.Parent = ToggleButton
+
+    local ButtonStroke = Instance.new("UIStroke")
+    ButtonStroke.Color = Color3.fromRGB(0, 255, 150)
+    ButtonStroke.Thickness = 1.5
+    ButtonStroke.Parent = ToggleButton
+
+    MainMenu = Instance.new("Frame")
+    MainMenu.Parent = ScreenGui
+    MainMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainMenu.Position = UDim2.new(0.12, 0, 0.2, 0)
+    MainMenu.Size = UDim2.new(0, 220, 0, 320)
+    MainMenu.Visible = false
+
+    local MenuCorner = Instance.new("UICorner")
+    MenuCorner.CornerRadius = UDim.new(0, 8)
+    MenuCorner.Parent = MainMenu
+
+    local MenuTitle = Instance.new("TextLabel")
+    MenuTitle.Parent = MainMenu
+    MenuTitle.Size = UDim2.new(1, 0, 0, 35)
+    MenuTitle.Text = "Tho dz - Anti-Crash V3"
+    MenuTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
+    MenuTitle.TextSize = 15
+    MenuTitle.Font = Enum.Font.SourceSansBold
+    MenuTitle.BackgroundTransparency = 1
+
+    local function CreateMenuToggle(text, pos, configKey, activeColor)
+        local btn = Instance.new("TextButton")
+        btn.Parent = MainMenu
+        btn.Size = UDim2.new(0, 180, 0, 30)
+        btn.Position = pos
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 12
+        
+        local function updateText()
+            local state = _G.ESP_Config[configKey]
+            btn.Text = text .. ": " .. (state and "ON" or "OFF")
+            btn.TextColor3 = state and activeColor or Color3.fromRGB(255, 100, 100)
+        end
+        
+        updateText()
+        btn.MouseButton1Click:Connect(function()
+            _G.ESP_Config[configKey] = not _G.ESP_Config[configKey]
+            updateText()
+        end)
+        
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, 5)
+        c.Parent = btn
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end
+
+    CreateMenuToggle("Player Body (Full)", UDim2.new(0, 20, 0, 45), "Player_Box", Color3.fromRGB(0, 255, 150))
+    CreateMenuToggle("Player Name & Distance", UDim2.new(0, 20, 0, 85), "Player_Name", Color3.fromRGB(0, 255, 150))
+    CreateMenuToggle("NPC Body (Full)", UDim2.new(0, 20, 0, 135), "NPC_Box", Color3.fromRGB(255, 200, 0))
+    CreateMenuToggle("NPC Name & Distance", UDim2.new(0, 20, 0, 175), "NPC_Name", Color3.fromRGB(255, 200, 0))
+    CreateMenuToggle("Item Box", UDim2.new(0, 20, 0, 225), "Item_Box", Color3.fromRGB(255, 0, 255))
+    CreateMenuToggle("Item Name & Distance", UDim2.new(0, 20, 0, 265), "Item_Name", Color3.fromRGB(255, 0, 255))
+
+    -- Draggable functionality
+    local function MakeDraggable(obj)
+        local dragging, dragInput, dragStart, startPos
+        obj.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; dragStart = input.Position; startPos = obj.Position
+                input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+            end
+        end)
+        obj.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
+    MakeDraggable(ToggleButton)
+    MakeDraggable(MainMenu)
+
+    ToggleButton.MouseButton1Click:Connect(function() MainMenu.Visible = not MainMenu.Visible end)
+end
+
+BuildUI()
+
+-- Entity Analyzer Mechanics
+local function IsNPC(model)
+    if not model:IsA("Model") or Players:GetPlayerFromCharacter(model) then return false end
+    return model:FindFirstChildOfClass("Humanoid") and model:FindFirstChild("HumanoidRootPart")
 end
 
 local function AnalyzeNPC(model)
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return "Interaction", Color3.fromRGB(255, 255, 255) end
-
-    if humanoid.WalkSpeed <= 1 or humanoid.MaxSlopeAngle == 0 or model:FindFirstChild("ClickDetector") or model:FindFirstChildOfClass("Dialog") then
-        return "Interaction", Color3.fromRGB(255, 255, 255)
-    end
-
-    local hasWeapon = model:FindFirstChildOfClass("Tool") or model:FindFirstChild("Weapon")
-    local hasEnemyTag = model:FindFirstChild("Enemy") or model:FindFirstChild("Monster") or model:FindFirstChild("Aggro")
-    local hasAttackScript = false
-    for _, child in ipairs(model:GetDescendants()) do
-        if child:IsA("Script") or child:IsA("LocalScript") then
-            local name = child.Name:lower()
-            if name:find("attack") or name:find("ai") or name:find("zombie") or name:find("kill") or name:find("combat") then
-                hasAttackScript = true
-                break
-            end
-        end
-    end
-
-    if hasWeapon or hasEnemyTag or hasAttackScript then
+    local hum = model:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.WalkSpeed <= 1 or model:FindFirstChild("ClickDetector") then return "Interaction", Color3.fromRGB(255, 255, 255) end
+    if model:FindFirstChildOfClass("Tool") or model:FindFirstChild("Enemy") or model:FindFirstChild("Monster") or model.Name:lower():find("zombie") then
         return "Enemy", Color3.fromRGB(255, 50, 50)
     end
     return "Friendly", Color3.fromRGB(0, 150, 255)
 end
 
-local function GetTargetItemPart(obj)
-    if obj:IsA("BasePart") then return obj
-    elseif obj:IsA("Model") then
-        if obj.PrimaryPart then return obj.PrimaryPart end
-        return obj:FindFirstChildOfClass("Part") or obj:FindFirstChildOfClass("MeshPart")
-    end
-    return nil
-end
-
-local function CheckAndGetItemRoot(obj)
-    if obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector") or obj:IsA("TouchTransmitter") then
-        local parent = obj.Parent
-        if parent and not IsNPC(parent) and not IsNPC(parent.Parent) then
-            local parentNameLower = parent.Name:lower()
-            if parent:FindFirstChildOfClass("Dialog") or parent:FindFirstChildOfClass("DialogPrompt") then return nil, nil end
-            if obj:IsA("ProximityPrompt") then
-                local actionText = obj.ActionText:lower()
-                local objectText = obj.ObjectText:lower()
-                for _, ign in ipairs(IgnoreKeywords) do
-                    if actionText:find(ign) or objectText:find(ign) then return nil, nil end
-                end
-            end
-            for _, ign in ipairs(IgnoreKeywords) do
-                if parentNameLower:find(ign) then return nil, nil end
-            end
-            local target = GetTargetItemPart(parent)
-            if target and target.Name ~= "HumanoidRootPart" then
-                local customName = obj:IsA("ProximityPrompt") and (obj.ObjectText ~= "" and obj.ObjectText or obj.ActionText)
-                return target, (customName and customName ~= "") and customName or parent.Name
-            end
-        end
-    end
+-- Efficient Item Cache Mapping to completely eliminate CPU drops
+local function CheckItem(obj)
+    if not obj:IsA("BasePart") or obj.Parent:IsA("Accessory") then return end
+    local nameLower = obj.Name:lower()
+    local pNameLower = obj.Parent and obj.Parent.Name:lower() or ""
     
-    if obj:IsA("Model") or (obj:IsA("BasePart") and not obj.Parent:IsA("Model")) then
-        if IsNPC(obj) or IsNPC(obj.Parent) then return nil, nil end
-        local nameLower = obj.Name:lower()
-        for _, ign in ipairs(IgnoreKeywords) do
-            if nameLower:find(ign) then return nil, nil end
-        end
-        if obj:FindFirstChildOfClass("Dialog") then return nil, nil end
-        local isMatchKeyword = false
-        for _, kw in ipairs(ValidItemKeywords) do
-            if nameLower:find(kw) or nameLower:find("spawn") then
-                isMatchKeyword = true
-                break
-            end
-        end
-        if isMatchKeyword then
-            local target = GetTargetItemPart(obj)
-            if target and target.Name ~= "HumanoidRootPart" and not game.Players:GetPlayerFromCharacter(obj.Parent) then
-                return target, obj.Name
-            end
-        end
-    end
-    return nil, nil
-end
-
-local function ApplyPlayerESP(player)
-    if player == LocalPlayer then return end
-    
-    local function SetupPlayerChar(character)
-        if not character then return end
-        local hrp = character:WaitForChild("HumanoidRootPart", 15)
-        if not hrp then return end
-
-        if character:FindFirstChild("P_Highlight") then character["P_Highlight"]:Destroy() end
-        if hrp:FindFirstChild("P_Gui") then hrp["P_Gui"]:Destroy() end
-
-        -- SỬA THÀNH FULL MÀU ĐỎ TOÀN THÂN (BÁM SÁT BODY)
-        local Highlight = Instance.new("Highlight")
-        Highlight.Name = "P_Highlight"
-        Highlight.FillColor = Color3.fromRGB(255, 0, 0)
-        Highlight.FillTransparency = 0.45 -- Độ đậm nhạt màu toàn thân (0 là đậm đặc, 1 là trong suốt)
-        Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        Highlight.OutlineTransparency = 0.2
-        Highlight.Adornee = character
-        Highlight.Enabled = Player_Box_Enabled
-        Highlight.Parent = character
-
-        local BillboardGui = Instance.new("BillboardGui")
-        BillboardGui.Name = "P_Gui"
-        BillboardGui.Adornee = hrp
-        BillboardGui.Size = UDim2.new(0, 200, 0, 50)
-        BillboardGui.StudsOffset = Vector3.new(0, 3, 0)
-        BillboardGui.AlwaysOnTop = true
-        BillboardGui.Enabled = Player_Name_Enabled
-
-        local TextLabel = Instance.new("TextLabel")
-        TextLabel.Parent = BillboardGui
-        TextLabel.BackgroundTransparency = 1
-        TextLabel.Size = UDim2.new(1, 0, 1, 0)
-        TextLabel.Text = player.Name
-        TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        TextLabel.TextSize = 13
-        TextLabel.Font = Enum.Font.SourceSansBold
-        TextLabel.TextStrokeTransparency = 0
-        BillboardGui.Parent = hrp
+    for _, ign in ipairs(IgnoreKeywords) do
+        if nameLower:find(ign) or pNameLower:find(ign) then return end
     end
 
-    if player.Character then task.spawn(SetupPlayerChar, player.Character) end
-    player.CharacterAdded:Connect(function(char)
-        task.spawn(SetupPlayerChar, char)
-    end)
+    for _, kw in ipairs(ValidItemKeywords) do
+        if nameLower:find(kw) or pNameLower:find(kw) then
+            ItemCache[obj] = true
+            return
+        end
+    end
 end
 
-local function ApplyNPC_ESP(model)
-    if not model or not model.Parent then return end
-    local hrp = model:WaitForChild("HumanoidRootPart", 5)
-    if not hrp then return end
-
-    if model:FindFirstChild("NPC_Highlight") then model["NPC_Highlight"]:Destroy() end
-    if hrp:FindFirstChild("NPC_Gui") then hrp["NPC_Gui"]:Destroy() end
-
-    local npcType, npcColor = AnalyzeNPC(model)
-
-    -- SỬA THÀNH FULL MÀU TOÀN THÂN THEO PHÂN LOẠI ĐỊCH/BẠN (BÁM SÁT BODY)
-    local Highlight = Instance.new("Highlight")
-    Highlight.Name = "NPC_Highlight"
-    Highlight.FillColor = npcColor
-    Highlight.FillTransparency = 0.45 -- Tô kín toàn thân NPC
-    Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    Highlight.OutlineTransparency = 0.2
-    Highlight.Adornee = model
-    Highlight.Enabled = NPC_Box_Enabled
-    Highlight.Parent = model
-
-    local BillboardGui = Instance.new("BillboardGui")
-    BillboardGui.Name = "NPC_Gui"
-    BillboardGui.Adornee = hrp
-    BillboardGui.Size = UDim2.new(0, 200, 0, 50)
-    BillboardGui.StudsOffset = Vector3.new(0, 3, 0)
-    BillboardGui.AlwaysOnTop = true
-    BillboardGui.Enabled = NPC_Name_Enabled
-
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Parent = BillboardGui
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.Text = model.Name .. " [" .. npcType .. "]"
-    TextLabel.TextColor3 = npcColor
-    TextLabel.TextSize = 13
-    TextLabel.Font = Enum.Font.SourceSansBold
-    TextLabel.TextStrokeTransparency = 0
-    BillboardGui.Parent = hrp
-end
-
-local function ApplyItemESP(targetPart, displayName)
-    if not targetPart or not targetPart.Parent then return end
-    if targetPart:FindFirstChild("Item_Highlight") then targetPart["Item_Highlight"]:Destroy() end
-    if targetPart:FindFirstChild("Item_Gui") then targetPart["Item_Gui"]:Destroy() end
-
-    local Highlight = Instance.new("Highlight")
-    Highlight.Name = "Item_Highlight"
-    Highlight.FillColor = Color3.fromRGB(255, 0, 255)
-    Highlight.FillTransparency = 0.5
-    Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    Highlight.Adornee = targetPart:IsA("Model") and targetPart or targetPart.Parent:IsA("Model") and targetPart.Parent or targetPart
-    Highlight.Enabled = Item_Box_Enabled
-    Highlight.Parent = targetPart
-
-    local BillboardGui = Instance.new("BillboardGui")
-    BillboardGui.Name = "Item_Gui"
-    BillboardGui.Adornee = targetPart
-    BillboardGui.Size = UDim2.new(0, 160, 0, 40)
-    BillboardGui.StudsOffset = Vector3.new(0, 2, 0)
-    BillboardGui.AlwaysOnTop = true
-    BillboardGui.Enabled = Item_Name_Enabled
-
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Parent = BillboardGui
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.Text = displayName
-    TextLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    TextLabel.TextSize = 12
-    TextLabel.Font = Enum.Font.SourceSansBold
-    TextLabel.TextStrokeTransparency = 0
-    BillboardGui.Parent = targetPart
-end
-
-for _, p in ipairs(Players:GetPlayers()) do ApplyPlayerESP(p) end
-Players.PlayerAdded:Connect(ApplyPlayerESP)
-
-local function ScanWorkspace()
+local function FullMapScan()
+    table.clear(ItemCache)
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if IsNPC(obj) then
-            task.spawn(ApplyNPC_ESP, obj)
-        else
-            local target, name = CheckAndGetItemRoot(obj)
-            if target then task.spawn(ApplyItemESP, target, name) end
-        end
+        CheckItem(obj)
     end
 end
-ScanWorkspace()
+FullMapScan()
 
-workspace.DescendantAdded:Connect(function(obj)
-    task.delay(0.8, function()
-        if IsNPC(obj) then
-            ApplyNPC_ESP(obj)
-        else
-            local target, name = CheckAndGetItemRoot(obj)
-            if target then ApplyItemESP(target, name) end
-        end
-    end)
-end)
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.delay(2, function()
-        ScanWorkspace()
-    end)
-end)
-
-game:GetService("RunService").Heartbeat:Connect(function()
-    local localHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character.Parent then
-            local hl = player.Character:FindFirstChild("P_Highlight")
-            if hl then hl.Enabled = Player_Box_Enabled end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local gui = hrp and hrp:FindFirstChild("P_Gui")
-            if gui then
-                gui.Enabled = Player_Name_Enabled
-                if Player_Name_Enabled and localHrp and hrp then
-                    local dist = (hrp.Position - localHrp.Position).Magnitude
-                    gui.TextLabel.Text = player.Name .. " [" .. math.floor(dist) .. "m]"
-                end
-            end
-        end
-    end
-
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChild("NPC_Highlight") then
-            local hl = obj:FindFirstChild("NPC_Highlight")
-            if hl then hl.Enabled = NPC_Box_Enabled end
-            local hrp = obj:FindFirstChild("HumanoidRootPart")
-            local gui = hrp and hrp:FindFirstChild("NPC_Gui")
-            if gui then
-                gui.Enabled = NPC_Name_Enabled
-                if NPC_Name_Enabled and localHrp and hrp then
-                    local dist = (hrp.Position - localHrp.Position).Magnitude
-                    local npcType, npcColor = AnalyzeNPC(obj)
-                    if hl then hl.FillColor = npcColor end
-                    gui.TextLabel.TextColor3 = npcColor
-                    gui.TextLabel.Text = obj.Name .. " [" .. npcType .. "] [" .. math.floor(dist) .. "m]"
-                end
-            end
-        elseif obj:IsA("BasePart") and obj:FindFirstChild("Item_Highlight") then
-            local hl = obj:FindFirstChild("Item_Highlight")
-            if hl then hl.Enabled = Item_Box_Enabled end
-            local gui = obj:FindFirstChild("Item_Gui")
-            if gui then
-                gui.Enabled = Item_Name_Enabled
-                if Item_Name_Enabled and localHrp then
-                    local dist = (obj.Position - localHrp.Position).Magnitude
-                    local baseName = obj.Parent:IsA("Model") and obj.Parent.Name or obj.Name
-                    gui.TextLabel.Text = baseName .. " [" .. math.floor(dist) .. "m]"
-                end
-            end
-        end
-    end
-end)
+local DescendantConnection = workspace.DescendantAdded:Connect(
