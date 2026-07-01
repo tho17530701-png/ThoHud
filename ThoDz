@@ -1,44 +1,100 @@
--- THO DZ UNIVERSAL ESP - ULTIMATE ANTI-CRASH VERSION
 if _G.ThoDz_ESP_Executed then
     _G.ThoDz_Cleanup()
 end
 _G.ThoDz_Executed = true
 
--- Global configuration cache to prevent resetting toggles after map swaps
-_G.ESP_Config = _G.ESP_Config or {
-    Player_Box = false, Player_Name = false,
-    NPC_Box = false, NPC_Name = false,
-    Item_Box = false, Item_Name = false
-}
-
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+
+local Player_Box_Enabled = false
+local Player_Name_Enabled = false
+local NPC_Box_Enabled = false
+local NPC_Name_Enabled = false
+local Item_Box_Enabled = false
+local Item_Name_Enabled = false
 
 local ScreenGui, MainMenu, ToggleButton
+local NPCCache = {}
 local ItemCache = {}
 
--- Optimized Search Filters
 local ValidItemKeywords = {"chest", "box", "crate", "fruit", "money", "coin", "cash", "gold", "diamond", "gem", "ore", "key", "loot", "pickup", "drop", "tool", "weapon", "potion"}
 local IgnoreKeywords = {"npc", "shop", "dealer", "talk", "chat", "dialog", "sign", "board", "info", "quest", "portal", "accessory", "hat"}
 
--- UI Constructor (Auto-Recreates if deleted by game scripts)
+local function IsNPC(model)
+    if not model:IsA("Model") or Players:GetPlayerFromCharacter(model) then return false end
+    return model:FindFirstChildOfClass("Humanoid") and model:FindFirstChild("HumanoidRootPart")
+end
+
+local function AnalyzeNPC(model)
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.WalkSpeed <= 1 or model:FindFirstChild("ClickDetector") then return "Interaction", Color3.fromRGB(255, 255, 255) end
+    if model:FindFirstChildOfClass("Tool") or model:FindFirstChild("Enemy") or model:FindFirstChild("Monster") then
+        return "Enemy", Color3.fromRGB(255, 50, 50)
+    end
+    return "Friendly", Color3.fromRGB(0, 150, 255)
+end
+
+local function CheckObject(obj)
+    if IsNPC(obj) then
+        local npcType, npcColor = AnalyzeNPC(obj)
+        NPCCache[obj] = {type = npcType, color = npcColor}
+        return
+    end
+
+    if obj:IsA("BasePart") and obj.Parent and not obj.Parent:IsA("Accessory") then
+        local nameLower = obj.Name:lower()
+        local parentNameLower = obj.Parent.Name:lower()
+        for _, ign in ipairs(IgnoreKeywords) do if nameLower:find(ign) or parentNameLower:find(ign) then return end end
+        for _, kw in ipairs(ValidItemKeywords) do
+            if nameLower:find(kw) or parentNameLower:find(kw) then
+                ItemCache[obj] = true
+                return
+            end
+        end
+    end
+end
+
+local function FastMapScan()
+    table.clear(NPCCache)
+    table.clear(ItemCache)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        pcall(CheckObject, obj)
+    end
+end
+FastMapScan()
+
+local ScanTask = task.spawn(function()
+    while true do
+        task.wait(3)
+        pcall(FastMapScan)
+    end
+end)
+
+-- Hàm xóa sạch Highlight cũ khi tắt hoặc chuyển ván để tránh lỗi kẹt viền
+local function ClearAllHighlights(hlName)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        local hl = obj:FindFirstChild(hlName)
+        if hl then pcall(function() hl:Destroy() end) end
+    end
+end
+
 local function BuildUI()
-    if CoreGui:FindFirstChild("Delta_Universal_ESP_ThoDz") then
-        CoreGui["Delta_Universal_ESP_ThoDz"]:Destroy()
+    if PlayerGui:FindFirstChild("Delta_Universal_ESP_ThoDz") then
+        PlayerGui["Delta_Universal_ESP_ThoDz"]:Destroy()
     end
 
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "Delta_Universal_ESP_ThoDz"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = CoreGui
+    ScreenGui.Parent = PlayerGui
 
     ToggleButton = Instance.new("TextButton")
     ToggleButton.Parent = ScreenGui
     ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    ToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+    ToggleButton.Position = UDim2.new(0.1, 0, 0.2, 0)
     ToggleButton.Size = UDim2.new(0, 55, 0, 55)
     ToggleButton.Text = "MENU"
     ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -57,7 +113,7 @@ local function BuildUI()
     MainMenu = Instance.new("Frame")
     MainMenu.Parent = ScreenGui
     MainMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    MainMenu.Position = UDim2.new(0.12, 0, 0.2, 0)
+    MainMenu.Position = UDim2.new(0.2, 0, 0.2, 0)
     MainMenu.Size = UDim2.new(0, 220, 0, 320)
     MainMenu.Visible = false
 
@@ -68,30 +124,37 @@ local function BuildUI()
     local MenuTitle = Instance.new("TextLabel")
     MenuTitle.Parent = MainMenu
     MenuTitle.Size = UDim2.new(1, 0, 0, 35)
-    MenuTitle.Text = "Tho dz - Anti-Crash V3"
+    MenuTitle.Text = "Thọ dz - Auto Refresh Fix"
     MenuTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
-    MenuTitle.TextSize = 15
+    MenuTitle.TextSize = 16
     MenuTitle.Font = Enum.Font.SourceSansBold
     MenuTitle.BackgroundTransparency = 1
 
-    local function CreateMenuToggle(text, pos, configKey, activeColor)
+    local function CreateMenuToggle(text, pos, activeColor, hlName, callback)
         local btn = Instance.new("TextButton")
         btn.Parent = MainMenu
         btn.Size = UDim2.new(0, 180, 0, 30)
         btn.Position = pos
         btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 12
+        btn.TextSize = 13
         
+        local state = false
         local function updateText()
-            local state = _G.ESP_Config[configKey]
-            btn.Text = text .. ": " .. (state and "ON" or "OFF")
+            btn.Text = text .. ": " .. (state and "BẬT" or "TẤT")
             btn.TextColor3 = state and activeColor or Color3.fromRGB(255, 100, 100)
         end
         
         updateText()
         btn.MouseButton1Click:Connect(function()
-            _G.ESP_Config[configKey] = not _G.ESP_Config[configKey]
+            state = not state
             updateText()
+            if not state and hlName then
+                ClearAllHighlights(hlName) -- Xóa sạch khi tắt đi bật lại
+            end
+            if state then
+                FastMapScan() -- Quét ép buộc lại bản đồ ngay lập tức để nhận diện Object mới ván này
+            end
+            callback(state)
         end)
         
         local c = Instance.new("UICorner")
@@ -100,23 +163,28 @@ local function BuildUI()
         btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     end
 
-    CreateMenuToggle("Player Body (Full)", UDim2.new(0, 20, 0, 45), "Player_Box", Color3.fromRGB(0, 255, 150))
-    CreateMenuToggle("Player Name & Distance", UDim2.new(0, 20, 0, 85), "Player_Name", Color3.fromRGB(0, 255, 150))
-    CreateMenuToggle("NPC Body (Full)", UDim2.new(0, 20, 0, 135), "NPC_Box", Color3.fromRGB(255, 200, 0))
-    CreateMenuToggle("NPC Name & Distance", UDim2.new(0, 20, 0, 175), "NPC_Name", Color3.fromRGB(255, 200, 0))
-    CreateMenuToggle("Item Box", UDim2.new(0, 20, 0, 225), "Item_Box", Color3.fromRGB(255, 0, 255))
-    CreateMenuToggle("Item Name & Distance", UDim2.new(0, 20, 0, 265), "Item_Name", Color3.fromRGB(255, 0, 255))
+    CreateMenuToggle("Player Khung (Trắng)", UDim2.new(0, 20, 0, 45), Color3.fromRGB(255, 255, 255), "P_Highlight", function(v) Player_Box_Enabled = v end)
+    CreateMenuToggle("Player Tên & Mét", UDim2.new(0, 20, 0, 85), Color3.fromRGB(255, 255, 255), "P_Gui", function(v) Player_Name_Enabled = v end)
+    CreateMenuToggle("NPC Màu Người (Phân biệt)", UDim2.new(0, 20, 0, 135), Color3.fromRGB(255, 200, 0), "NPC_Highlight", function(v) NPC_Box_Enabled = v end)
+    CreateMenuToggle("NPC Tên & Mét", UDim2.new(0, 20, 0, 175), Color3.fromRGB(255, 200, 0), "NPC_Gui", function(v) NPC_Name_Enabled = v end)
+    CreateMenuToggle("Item Khung (Box)", UDim2.new(0, 20, 0, 225), Color3.fromRGB(255, 0, 255), "Item_Highlight", function(v) Item_Box_Enabled = v end)
+    CreateMenuToggle("Item Tên & Mét", UDim2.new(0, 20, 0, 265), Color3.fromRGB(255, 0, 255), "Item_Gui", function(v) Item_Name_Enabled = v end)
 
-    -- Draggable functionality
     local function MakeDraggable(obj)
         local dragging, dragInput, dragStart, startPos
         obj.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; dragStart = input.Position; startPos = obj.Position
-                input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+                dragging = true
+                dragStart = input.Position
+                startPos = obj.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
             end
         end)
-        obj.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+        obj.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+        end)
         UserInputService.InputChanged:Connect(function(input)
             if input == dragInput and dragging then
                 local delta = input.Position - dragStart
@@ -127,50 +195,131 @@ local function BuildUI()
     MakeDraggable(ToggleButton)
     MakeDraggable(MainMenu)
 
-    ToggleButton.MouseButton1Click:Connect(function() MainMenu.Visible = not MainMenu.Visible end)
+    ToggleButton.MouseButton1Click:Connect(function()
+        MainMenu.Visible = not MainMenu.Visible
+    end)
 end
 
 BuildUI()
 
--- Entity Analyzer Mechanics
-local function IsNPC(model)
-    if not model:IsA("Model") or Players:GetPlayerFromCharacter(model) then return false end
-    return model:FindFirstChildOfClass("Humanoid") and model:FindFirstChild("HumanoidRootPart")
-end
-
-local function AnalyzeNPC(model)
-    local hum = model:FindFirstChildOfClass("Humanoid")
-    if not hum or hum.WalkSpeed <= 1 or model:FindFirstChild("ClickDetector") then return "Interaction", Color3.fromRGB(255, 255, 255) end
-    if model:FindFirstChildOfClass("Tool") or model:FindFirstChild("Enemy") or model:FindFirstChild("Monster") or model.Name:lower():find("zombie") then
-        return "Enemy", Color3.fromRGB(255, 50, 50)
+local function UpdateHighlight(target, hlName, color, fillTrans, enabled)
+    if not target or not target.Parent then return end
+    local hl = target:FindFirstChild(hlName)
+    if not hl and enabled then
+        hl = Instance.new("Highlight")
+        hl.Name = hlName
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.OutlineTransparency = 0.2
+        hl.Parent = target
     end
-    return "Friendly", Color3.fromRGB(0, 150, 255)
-end
-
--- Efficient Item Cache Mapping to completely eliminate CPU drops
-local function CheckItem(obj)
-    if not obj:IsA("BasePart") or obj.Parent:IsA("Accessory") then return end
-    local nameLower = obj.Name:lower()
-    local pNameLower = obj.Parent and obj.Parent.Name:lower() or ""
-    
-    for _, ign in ipairs(IgnoreKeywords) do
-        if nameLower:find(ign) or pNameLower:find(ign) then return end
-    end
-
-    for _, kw in ipairs(ValidItemKeywords) do
-        if nameLower:find(kw) or pNameLower:find(kw) then
-            ItemCache[obj] = true
-            return
+    if hl then
+        hl.Enabled = enabled
+        if enabled then
+            hl.FillColor = color
+            hl.FillTransparency = fillTrans
+            hl.Adornee = target
         end
     end
 end
 
-local function FullMapScan()
-    table.clear(ItemCache)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        CheckItem(obj)
+local function UpdateBillboard(hrp, guiName, text, color, enabled)
+    if not hrp or not hrp.Parent then return end
+    local gui = hrp:FindFirstChild(guiName)
+    if not gui and enabled then
+        gui = Instance.new("BillboardGui")
+        gui.Name = guiName
+        gui.Size = UDim2.new(0, 180, 0, 40)
+        gui.StudsOffset = Vector3.new(0, 3, 0)
+        gui.AlwaysOnTop = true
+        
+        local label = Instance.new("TextLabel")
+        label.Parent = gui
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.TextSize = 13
+        label.Font = Enum.Font.SourceSansBold
+        label.TextStrokeTransparency = 0
+        gui.Parent = hrp
+    end
+    if gui then
+        gui.Enabled = enabled
+        if enabled then
+            gui.TextLabel.Text = text
+            gui.TextLabel.TextColor3 = color
+        end
     end
 end
-FullMapScan()
 
-local DescendantConnection = workspace.DescendantAdded:Connect(
+_G.ThoDz_Loop_Connection = RunService.Heartbeat:Connect(function()
+    local character = LocalPlayer.Character
+    local localHrp = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not ScreenGui or not ScreenGui.Parent then
+        pcall(BuildUI)
+    end
+
+    -- 1. PLAYERS
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character.Parent then
+            local char = player.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            
+            pcall(UpdateHighlight, char, "P_Highlight", Color3.fromRGB(255, 255, 255), 0.45, Player_Box_Enabled)
+            if hrp and Player_Name_Enabled and localHrp then
+                local dist = math.floor((hrp.Position - localHrp.Position).Magnitude)
+                pcall(UpdateBillboard, hrp, "P_Gui", player.Name .. " [" .. dist .. "m]", Color3.fromRGB(255, 255, 255), true)
+            elseif hrp then
+                pcall(UpdateBillboard, hrp, "P_Gui", "", Color3.fromRGB(0,0,0), false)
+            end
+        end
+    end
+
+    -- 2. NPC
+    for npc, data in pairs(NPCCache) do
+        if npc and npc.Parent then
+            local hrp = npc:FindFirstChild("HumanoidRootPart")
+            pcall(UpdateHighlight, npc, "NPC_Highlight", data.color, 0.45, NPC_Box_Enabled)
+            if hrp and NPC_Name_Enabled and localHrp then
+                local dist = math.floor((hrp.Position - localHrp.Position).Magnitude)
+                pcall(UpdateBillboard, hrp, "NPC_Gui", npc.Name .. " [" .. data.type .. "] [" .. dist .. "m]", data.color, true)
+            elseif hrp then
+                pcall(UpdateBillboard, hrp, "NPC_Gui", "", Color3.fromRGB(0,0,0), false)
+            end
+        else
+            NPCCache[npc] = nil
+        end
+    end
+
+    -- 3. ITEMS
+    for item, _ in pairs(ItemCache) do
+        if item and item.Parent then
+            pcall(UpdateHighlight, item, "Item_Highlight", Color3.fromRGB(255, 0, 255), 0.5, Item_Box_Enabled)
+            if Item_Name_Enabled and localHrp then
+                local dist = math.floor((item.Position - localHrp.Position).Magnitude)
+                pcall(UpdateBillboard, item, "Item_Gui", item.Name .. " [" .. dist .. "m]", Color3.fromRGB(255, 255, 0), true)
+            else
+                pcall(UpdateBillboard, item, "Item_Gui", "", Color3.fromRGB(0,0,0), false)
+            end
+        else
+            ItemCache[item] = nil
+        end
+    end
+end)
+
+_G.ThoDz_Cleanup = function()
+    if _G.ThoDz_Loop_Connection then _G.ThoDz_Loop_Connection:Disconnect() end
+    if ScanTask then task.cancel(ScanTask) end
+    if ScreenGui then ScreenGui:Destroy() end
+    ClearAllHighlights("P_Highlight")
+    ClearAllHighlights("NPC_Highlight")
+    ClearAllHighlights("Item_Highlight")
+    table.clear(NPCCache)
+    table.clear(ItemCache)
+end
+
+-- Tự động kích hoạt quét lại map sạch sẽ khi nhân vật của bạn hồi sinh/qua ván mới
+LocalPlayer.CharacterAdded:Connect(function()
+    task.delay(1.5, function()
+        FastMapScan()
+    end)
+end)
